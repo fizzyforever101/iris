@@ -38,6 +38,8 @@ To run a standalone peer, you need:
 * Verify your installation with `go version`
 
 ## Ongoing Improvements: Modifying the file-sharing protocol to send fixed-sized chunks
+### Authors
+Sabina Sokol, Keerthana Thotakura, Maria Jothish, Tran Ha, Seung-a Baek
 ### Motivation
 Allows for partial downloads of files
 ### Strategy
@@ -45,7 +47,7 @@ Allows for partial downloads of files
 2. Peer Checks Missing Chunks → Compares existing chunks via hashing.
 3. Peer Requests Only Missing Chunks → Saves bandwidth.
 4. Sender Sends Requested Chunks → Avoids redundant transfers.
-5. Peer Reassembles the File → Completes file transfer efficiently.
+5. Peer Reassembles the File if All Chunks Are Available → Completes file transfer efficiently.
 
 ## User Guide
 
