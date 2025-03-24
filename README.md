@@ -28,7 +28,14 @@ to pre-trusted groups of peers.
 
 To run a standalone peer, you need:
 * a running redis instance
-* golang (>1.17)
+* golang (1.17) 
+
+### Install Go 1.17
+* Go to https://go.dev/dl/ and download/run the installer for your machine
+* Run `ls /usr/local/go` in a terminal (for Mac/Linux) or `dir "C:\Go"` in Command Prompt for Windows
+* Next, check if `go` is in your path with `echo $PATH` for Mac/Linux or `echo %PATH%` for Windows
+* If `/usr/local/go/bin` (Mac/Linux) or `C:\Go\bin` (Windows) is missing, run `echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc; source ~/.bashrc  # or source ~/.zshrc if using zsh` (Mac/Linux) or add `C:\Go\bin` manually to System variables (Windows)
+* Verify your installation with `go version`
 
 ## User Guide
 
