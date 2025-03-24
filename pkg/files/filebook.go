@@ -22,6 +22,11 @@ type FileMeta struct {
 	Rights      []*org.Org
 	Severity    Severity
 	Description interface{}
+
+	ChunkSize    int32     // size (in bytes) of each chunk
+	ChunkCount   int32     // total number of chunks
+	// a slice of booleans that indicates which chunk has been downloaded (or is available)
+	ChunksStatus []bool    // true if the chunk is available locally, false otherwise
 }
 
 func GetFileCid(path string) (*cid.Cid, error) {
@@ -68,4 +73,27 @@ func (fb *FileBook) AddFile(cid *cid.Cid, meta *FileMeta) error {
 	}
 	fb.files[*cid] = meta
 	return nil
+}
+
+// update whether chunk is available or not
+func (fb *FileBook) UpdateChunkStatus(cid *cid.Cid, chunkIndex int32, available bool) error {
+	meta := fb.Get(cid)
+	if meta == nil {
+		return errors.Errorf("file with cid %s not found", cid.String())
+	}
+	if int(chunkIndex) >= len(meta.ChunksStatus) {
+		return errors.Errorf("chunk index %d out of range", chunkIndex)
+	}
+	meta.ChunksStatus[chunkIndex] = available
+	return nil
+}
+
+// use to check if all chunks are available to reassemble the file
+func (meta *FileMeta) IsComplete() bool {
+    for _, available := range meta.ChunksStatus {
+        if !available {
+            return false
+        }
+    }
+    return true
 }

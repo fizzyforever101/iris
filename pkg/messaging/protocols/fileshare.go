@@ -21,6 +21,12 @@ import (
 	"happystoic/p2pnetwork/pkg/org"
 )
 
+/*
+Implementation TODOs:
+- check completion: update FileMeta data to mark downloaded chunks
+- file reassembly (optional): if all chunks are available for a file, reassemble to stoe complete file
+*/
+
 // p2p protocol definition
 const p2pFileShareMetadataProtocol = "/fileShare-metadata/0.0.1"
 const p2pFileShareDownloadProtocol = "/fileShare-download/0.0.1"
@@ -37,28 +43,38 @@ type FileShareProtocol struct {
 }
 
 type Tl2NlRedisFileShareAnnounce struct {
-	ExpiredAt   int64       `json:"expired_at"`
-	Description interface{} `json:"description"`
-	Severity    string      `json:"severity"`
-	Path        string      `json:"path"`
-	Rights      []string    `json:"rights"`
+    ExpiredAt       int64       `json:"expired_at"`
+    Description     interface{} `json:"description"`
+    Severity        string      `json:"severity"`
+    Path            string      `json:"path"`
+    Rights          []string    `json:"rights"`
+    TotalSize       int64       `json:"total_size"`      // total file size in bytes
+    ChunkSize       int32       `json:"chunk_size"`      // size of each chunk
+    ChunkCount      int32       `json:"chunk_count"`     // total number of chunks
+    AvailableChunks []int32     `json:"available_chunks"`// indices of chunks available
 }
 
 type Tl2NlRedisFileShareDownloadReq struct {
-	FileId string `json:"file_id"`
+    FileId       string   `json:"file_id"`
+    ChunkIndices []int32  `json:"chunk_indices"` // list of chunk indices requested
 }
 
 type Nl2TlRedisFileShareMetadata struct {
-	FileId      string             `json:"file_id"`
-	Severity    string             `json:"severity"`
-	Sender      utils.PeerMetadata `json:"sender"`
-	Description interface{}        `json:"description"`
+    FileId          string             `json:"file_id"`
+    Severity        string             `json:"severity"`
+    Sender          utils.PeerMetadata `json:"sender"`
+    Description     interface{}        `json:"description"`
+    TotalSize       int64              `json:"total_size"`      // total file size in bytes
+    ChunkSize       int32              `json:"chunk_size"`      // size of each chunk
+    ChunkCount      int32              `json:"chunk_count"`     // total number of chunks
+    AvailableChunks []int32            `json:"available_chunks"`// indices of chunks available
 }
 
 type Nl2TlRedisFileShareDownloadDone struct {
-	FileId string             `json:"file_id"`
-	Path   string             `json:"path"`
-	Sender utils.PeerMetadata `json:"sender"`
+    FileId     string             `json:"file_id"`
+    Path       string             `json:"path"`
+    Sender     utils.PeerMetadata `json:"sender"`
+    ChunkIndex int32              `json:"chunk_index,omitempty"` // New: indicate which chunk (if applicable)
 }
 
 func NewFileShareProtocol(ctx context.Context, pu *utils.ProtoUtils, fb *files.FileBook,
@@ -111,25 +127,98 @@ func (fs *FileShareProtocol) onDownloadRequest(data []byte) {
 	// sort providers based on their reliability to decreasing order
 	fs.ReliabilitySort(providers)
 
-	// now use the DHT to download the file
-	path, sender := fs.downloadFile(providers, fileCid)
-	if path == "" || sender == nil {
-		// we did not succeed
-		return
-	}
-	// tell TL where the file is downloaded
-	err = fs.notifyTLAboutDownload(fileCid, *sender, path)
-	if err != nil {
-		log.Errorf("error sending download confirmation to redis: %s", err)
-		return
-	}
-	meta.Available = true
-	meta.Path = path
-	err = fs.dht.StartProviding(fileCid) // todo maybe make this as option in config
-	if err != nil {
-		log.Errorf("error starting providing file in dht: %s", err)
-	}
-	log.Infof("successfully downloaded the file %s to path %s", fileCid.String(), path)
+	// if specific chunk indices are requested, handle chunked download
+	if len(fileAnnouncement.ChunkIndices) > 0 {
+        // for each requested chunk, initiate a chunk download
+        for _, chunkIndex := range fileAnnouncement.ChunkIndices {
+            path, sender := fs.downloadSingleChunk(fileCid, chunkIndex)
+            if path == "" || sender == nil {
+                log.Errorf("failed to download chunk %d of file %s", chunkIndex, fileCid.String())
+                continue
+            }
+            // notify TL about the downloaded chunk
+            err = fs.notifyTLAboutDownload(fileCid, *sender, path)
+            if err != nil {
+                log.Errorf("error sending download confirmation to redis for chunk %d: %s", chunkIndex, err)
+                continue
+            }
+            log.Infof("successfully downloaded chunk %d of file %s", chunkIndex, fileCid.String())
+        }
+    } else {
+        // otherwise, proceed with the full file download as in original implementation
+		// now use DHT to download the file
+        path, sender := fs.downloadFile(providers, fileCid)
+        if path == "" || sender == nil {
+			// did not succeed
+            return
+        }
+		// notify TL where file is downloaded
+        err = fs.notifyTLAboutDownload(fileCid, *sender, path)
+        if err != nil {
+            log.Errorf("error sending download confirmation to redis: %s", err)
+            return
+        }
+        meta.Available = true
+        meta.Path = path
+        err = fs.dht.StartProviding(fileCid)
+        if err != nil {
+            log.Errorf("error starting providing file in DHT: %s", err)
+        }
+        log.Infof("successfully downloaded the file %s to path %s", fileCid.String(), path)
+    }
+}
+
+// helper function to download individual chunk
+func (fs *FileShareProtocol) downloadSingleChunk(fileCid cid.Cid, chunkIndex int32) (string, *utils.PeerMetadata) {
+    // create a FileDownloadRequest specifically for this chunk
+    req := &pb.FileDownloadRequest{
+        Cid:          fileCid.String(),
+        ChunkSize:    fs.getChunkSizeFor(fileCid), // Define this helper to retrieve the chunk size from metadata
+        ChunkIndices: []int32{chunkIndex},
+    }
+    // Sabina's TODO: adapt exisiting P2P download logic from tryFileProvider
+    path, err := fs.tryDownloadChunk(req, fileCid) 
+    if err != nil {
+        log.Errorf("error downloading chunk %d: %s", chunkIndex, err)
+        return "", nil
+    }
+    // return the local path where the chunk is stored and the peer metadata
+    return path, fs.getLastSuccessfulProvider()
+}
+
+// not sure if this is necessary/redundant because FileBook already has a getter
+func (fs *FileShareProtocol) getChunkSizeFor(fileCid cid.Cid) int32 {
+    meta := fs.fileBook.Get(&fileCid)
+    if meta == nil {
+        log.Errorf("metadata not found for file cid: %s", fileCid.String())
+        return 0
+    }
+    return meta.ChunkSize
+}
+
+// helper to download individual chunks by calling tryFileProvider
+func (fs *FileShareProtocol) tryDownloadChunk(req *pb.FileDownloadRequest, fileCid cid.Cid) (string, error) {
+    // get providers from the DHT for this file
+    providers, err := fs.dht.GetProvidersOf(fileCid)
+    if err != nil {
+        return "", errors.Errorf("error getting providers of file %s: %s", fileCid.String(), err)
+    }
+    if len(providers) == 0 {
+        return "", errors.Errorf("no providers found for file %s", fileCid.String())
+    }
+
+    // try each provider until one returns the chunk successfully
+    for _, p := range providers {
+        // use tryFileProvider to send the request/get the response
+        path, err := fs.tryFileProvider(req, p.ID, fileCid)
+        if err != nil {
+            log.Error(err)
+            continue
+        }
+        // If we get a valid path (i.e. the chunk was downloaded), return it.
+        return path, nil
+    }
+    return "", errors.Errorf("failed to download chunk from all providers for file %s", fileCid.String())
 }
 
 func (fs *FileShareProtocol) createP2PFileDownloadReq(fileCid cid.Cid) (*pb.FileDownloadRequest, error) {
@@ -426,6 +515,7 @@ func (fs *FileShareProtocol) createP2PMeta(fCid cid.Cid, meta Tl2NlRedisFileShar
 		return nil, err
 	}
 
+	// add chunk data to protoMsg
 	protoMsg := &pb.FileMetadata{
 		Metadata:    msgMetaData,
 		Cid:         fCid.String(),
@@ -433,6 +523,10 @@ func (fs *FileShareProtocol) createP2PMeta(fCid cid.Cid, meta Tl2NlRedisFileShar
 		Rights:      meta.Rights,
 		Severity:    meta.Severity,
 		ExpiredAt:   meta.ExpiredAt,
+		TotalSize:	 meta.TotalSize,
+		ChunkSize:	 meta.ChunkSize,
+		ChunkCount:  meta.ChunkCount,
+		AvailableChunks: meta.AvailableChunks,
 	}
 	signature, err := fs.SignProtoMessage(protoMsg)
 	if err != nil {

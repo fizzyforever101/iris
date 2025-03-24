@@ -37,6 +37,16 @@ To run a standalone peer, you need:
 * If `/usr/local/go/bin` (Mac/Linux) or `C:\Go\bin` (Windows) is missing, run `echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc; source ~/.bashrc  # or source ~/.zshrc if using zsh` (Mac/Linux) or add `C:\Go\bin` manually to System variables (Windows)
 * Verify your installation with `go version`
 
+## Ongoing Improvements: Modifying the file-sharing protocol to send fixed-sized chunks
+### Motivation
+Allows for partial downloads of files
+### Strategy
+1. Peer Requests Metadata → Learns chunk details including file name, total file size, chunk size, and the list of chunk hashes (for verification).
+2. Peer Checks Missing Chunks → Compares existing chunks via hashing.
+3. Peer Requests Only Missing Chunks → Saves bandwidth.
+4. Sender Sends Requested Chunks → Avoids redundant transfers.
+5. Peer Reassembles the File → Completes file transfer efficiently.
+
 ## User Guide
 
 ### OrgSig Tool

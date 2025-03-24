@@ -13,12 +13,18 @@ message FileMetadata {
 
   string severity = 5;
   int64 expiredAt = 6;
+  int64 total_size = 7; // field to store the total file size
+  int32 chunk_size = 8; // Size of each chunk (if chunking is used)
+  int32 chunk_count = 9; // Total number of chunks (based on total_size / chunk_size)
+  repeated int32 available_chunks = 10; // List of chunk indices that are available for download
 }
 
 message FileDownloadRequest {
   MetaData metadata = 1;
 
   string cid = 2;
+  int32 chunk_size = 3; // field for chunk size
+  repeated int32 chunk_indices = 4; // list of chunk indices to download
 }
 
 message FileDownloadResponse {
@@ -26,6 +32,7 @@ message FileDownloadResponse {
 
   string status = 2;
   bytes data = 3;
+  int32 chunk_index = 4; // To indicate which chunk is being returned
 }
 
 
