@@ -67,6 +67,9 @@ Starting a peer with reference configuration is as simple as running (assuming a
 
 > make run
 
+![image](https://github.com/user-attachments/assets/bf739119-c699-4125-9a7e-63452ed94161)
+
+
 ### Debugging, Running Multiple Peers
 
 To run multiple peers simultaneously, you can use an already prepared docker-compose file with pre-configured 4 peers.
