@@ -21,12 +21,6 @@ import (
 	"happystoic/p2pnetwork/pkg/org"
 )
 
-/*
-Implementation TODOs:
-- check completion: update FileMeta data to mark downloaded chunks
-- file reassembly (optional): if all chunks are available for a file, reassemble to stoe complete file
-*/
-
 // p2p protocol definition
 const p2pFileShareMetadataProtocol = "/fileShare-metadata/0.0.1"
 const p2pFileShareDownloadProtocol = "/fileShare-download/0.0.1"
@@ -674,31 +668,30 @@ func (fs *FileShareProtocol) fileMetaFromRedis(ann *Tl2NlRedisFileShareAnnounce)
 		rights = append(rights, o)
 	}
 
-	// Initialize the ChunksStatus slice based on ChunkCount	var desc interface{}
-	chunksStatus := make([]bool, ann.ChunkCount)	err = json.Unmarshal(ann.Description, &desc)
-		if err != nil {
-	// Mark available chunks as true in ChunksStatus		return nil, nil, err
-	for _, chunkIndex := range ann.AvailableChunks {	}
-		if chunkIndex >= 0 && int(chunkIndex) < len(chunksStatus) {
-			chunksStatus[chunkIndex] = true	// Initialize the ChunksStatus slice based on ChunkCount
-		}	chunksStatus := make([]bool, ann.ChunkCount)
-	}	
+	// Initialize the ChunksStatus slice based on ChunkCount
+	chunksStatus := make([]bool, ann.ChunkCount)
+	err = json.Unmarshal(ann.Description, &desc)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Mark available chunks as true in ChunksStatus
-	meta := &files.FileMeta{	for _, chunkIndex := range ann.AvailableChunks {
-		ExpiredAt:     expiredAt,		if chunkIndex >= 0 && int(chunkIndex) < len(chunksStatus) {
+	for _, chunkIndex := range ann.AvailableChunks {
+		if chunkIndex >= 0 && int(chunkIndex) < len(chunksStatus) {
+			chunksStatus[chunkIndex] = true
+		}
+	}
+	meta := &files.FileMeta{
+		ExpiredAt:     expiredAt,
 		Expired:       time.Now().After(expiredAt),
 		Available:     true,
 		Path:          ann.Path,
 		Rights:        rights,
 		Severity:      severity,
-		Description:   ann.Description,
-		ChunkSize:     ann.ChunkSize,      // Set chunk size from announcementer(expiredAt),
+		Description:   desc,
+		ChunkSize:     ann.ChunkSize,      // Set chunk size from announcement
 		ChunkCount:    ann.ChunkCount,     // Set chunk count from announcement
 		ChunksStatus:  chunksStatus,       // Set chunk status from announcement
-	}
-	return fileCid, meta, nilSeverity:      severity,
-}
-		ChunksStatus:  chunksStatus,
 	}
 	return fileCid, meta, nil
 }
