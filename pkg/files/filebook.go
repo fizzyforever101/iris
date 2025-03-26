@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"time"
+	"io"
+	"path/filepath"
 
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
@@ -96,4 +98,96 @@ func (meta *FileMeta) IsComplete() bool {
         }
     }
     return true
+}
+
+// splits a file into chunks and stores them in the chunk storage
+func (fb *FileBook) SplitFileIntoChunks(path string, chunkSize int32, baseDir string) (*cid.Cid, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	fileCid, err := GetFileCid(path)
+	if err != nil {
+		return nil, err
+	}
+
+	meta := &FileMeta{
+		Path:        path,
+		ChunkSize:   chunkSize,
+		ChunkCount:  0,
+		ChunksStatus: []bool{},
+	}
+
+	// Use the provided baseDir for chunk storage
+	chunkDir := filepath.Join(baseDir, "chunks", fileCid.String())
+	err = os.MkdirAll(chunkDir, os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := make([]byte, chunkSize)
+	for {
+		n, err := f.Read(buf)
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
+		if n == 0 {
+			break
+		}
+
+		chunkPath := filepath.Join(chunkDir, fmt.Sprintf("%d", meta.ChunkCount))
+		err = ioutil.WriteFile(chunkPath, buf[:n], os.ModePerm)
+		if err != nil {
+			return nil, err
+		}
+
+		meta.ChunkCount++
+		meta.ChunksStatus = append(meta.ChunksStatus, true)
+	}
+
+	err = fb.AddFile(fileCid, meta)
+	if err != nil {
+		return nil, err
+	}
+
+	return fileCid, nil
+}
+
+// reassembles a file from its chunks and writes it to the output path string)
+func (fb *FileBook) ReassembleFile(cid *cid.Cid, outputPath string) error {
+	meta := fb.Get(cid)
+	if meta == nil {
+		return errors.Errorf("file with cid %s not found", cid.String())
+	}
+
+	// Ensure all chunks are available
+	if (!meta.IsComplete()) {
+		return errors.Errorf("not all chunks are available for file %s", cid.String())
+	}
+
+	// Open the output file for writing
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
+
+	// Read and concatenate chunks in orderString())
+	chunkDir := filepath.Join("chunks", cid.String())
+	for i := int32(0); i < meta.ChunkCount; i++ {
+		chunkPath := filepath.Join(chunkDir, fmt.Sprintf("%d", i))
+		chunkData, err := os.ReadFile(chunkPath)		
+		}
+		_, err = outputFile.Write(chunkData)
+		if err != nil {File.Write(chunkData)
+			return errors.Errorf("error writing chunk %d to output file for file %s: %s", i, cid.String(), err)
+		}return errors.Errorf("error writing chunk %d to output file for file %s: %s", i, cid.String(), err)
+		
+	// Update metadata to mark the file as reassembled
+	meta.Available = true mark the file as reassembled
+	meta.Path = outputPath
+	meta.Path = outputPath
+	return nil
 }
