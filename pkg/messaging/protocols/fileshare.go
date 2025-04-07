@@ -184,7 +184,6 @@ func (fs *FileShareProtocol) downloadSingleChunk(fileCid cid.Cid, chunkIndex int
         ChunkSize:    fs.getChunkSizeFor(fileCid), // Define this helper to retrieve the chunk size from metadata
         ChunkIndices: []int32{chunkIndex},
     }
-    // Sabina's TODO: adapt exisiting P2P download logic from tryFileProvider
     path, err := fs.tryDownloadChunk(req, fileCid) 
     if err != nil {
         log.Errorf("error downloading chunk %d: %s", chunkIndex, err)
@@ -214,7 +213,6 @@ func (fs *FileShareProtocol) tryDownloadChunk(req *pb.FileDownloadRequest, fileC
     if len(providers) == 0 {
         return "", errors.Errorf("no providers found for file %s", fileCid.String())
     }
-
     // try each provider until one returns the chunk successfully
     for _, p := range providers {
         // use tryFileProvider to send the request/get the response

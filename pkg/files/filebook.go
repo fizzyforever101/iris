@@ -183,10 +183,10 @@ func (fb *FileBook) ReassembleFile(cid *cid.Cid, outputPath string) error {
 		_, err = outputFile.Write(chunkData)
 		if err != nil {File.Write(chunkData)
 			return errors.Errorf("error writing chunk %d to output file for file %s: %s", i, cid.String(), err)
-		}return errors.Errorf("error writing chunk %d to output file for file %s: %s", i, cid.String(), err)
+		}
 		
 	// Update metadata to mark the file as reassembled
-	meta.Available = true mark the file as reassembled
+	meta.Available = true
 	meta.Path = outputPath
 	meta.Path = outputPath
 	return nil
