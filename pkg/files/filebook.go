@@ -7,6 +7,7 @@ import (
 	"time"
 	"io"
 	"path/filepath"
+	"fmt"
 
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
@@ -48,6 +49,8 @@ func GetFileCid(path string) (*cid.Cid, error) {
 	return GetBytesCid(data)
 }
 
+// GetBytesCid generates a CID from the given byte slice
+// using the CIDv0 format. It uses the SHA-256 hash function
 func GetBytesCid(data []byte) (*cid.Cid, error) {
 	var builder cid.V0Builder
 	c, err := cid.V0Builder.Sum(builder, data)
@@ -137,6 +140,7 @@ func (fb *FileBook) SplitFileIntoChunks(path string, chunkSize int32, baseDir st
 			break
 		}
 
+		// Define chunkPath before using it
 		chunkPath := filepath.Join(chunkDir, fmt.Sprintf("%d", meta.ChunkCount))
 		err = ioutil.WriteFile(chunkPath, buf[:n], os.ModePerm)
 		if err != nil {
@@ -156,7 +160,7 @@ func (fb *FileBook) SplitFileIntoChunks(path string, chunkSize int32, baseDir st
 }
 
 // reassembles a file from its chunks and writes it to the output path string)
-func (fb *FileBook) ReassembleFile(cid *cid.Cid, outputPath string) error {
+func (fb *FileBook) ReassembleFile(cid *cid.Cid, outputPath string, baseDir string) error {
 	meta := fb.Get(cid)
 	if meta == nil {
 		return errors.Errorf("file with cid %s not found", cid.String())
@@ -175,19 +179,18 @@ func (fb *FileBook) ReassembleFile(cid *cid.Cid, outputPath string) error {
 	defer outputFile.Close()
 
 	// Read and concatenate chunks in orderString())
-	chunkDir := filepath.Join("chunks", cid.String())
+	chunkDir := filepath.Join(baseDir, "chunks", cid.String())
 	for i := int32(0); i < meta.ChunkCount; i++ {
 		chunkPath := filepath.Join(chunkDir, fmt.Sprintf("%d", i))
-		chunkData, err := os.ReadFile(chunkPath)		
-		}
+		chunkData, err := os.ReadFile(chunkPath)
 		_, err = outputFile.Write(chunkData)
-		if err != nil {File.Write(chunkData)
+		if err != nil {
 			return errors.Errorf("error writing chunk %d to output file for file %s: %s", i, cid.String(), err)
 		}
-		
+	}
+
 	// Update metadata to mark the file as reassembled
 	meta.Available = true
-	meta.Path = outputPath
 	meta.Path = outputPath
 	return nil
 }
