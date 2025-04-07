@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/pkg/errors"
+	"path/filepath"
 
 	"happystoic/p2pnetwork/pkg/config"
 	ldht "happystoic/p2pnetwork/pkg/dht"
@@ -37,38 +38,38 @@ type FileShareProtocol struct {
 }
 
 type Tl2NlRedisFileShareAnnounce struct {
-    ExpiredAt       int64       `json:"expired_at"`
-    Description     interface{} `json:"description"`
-    Severity        string      `json:"severity"`
-    Path            string      `json:"path"`
-    Rights          []string    `json:"rights"`
-    TotalSize       int64       `json:"total_size"`      // total file size in bytes
-    ChunkSize       int32       `json:"chunk_size"`      // size of each chunk
-    ChunkCount      int32       `json:"chunk_count"`     // total number of chunks
-    AvailableChunks []int32     `json:"available_chunks"`// indices of chunks available
+	ExpiredAt       int64       `json:"expired_at"`
+	Description     interface{} `json:"description"`
+	Severity        string      `json:"severity"`
+	Path            string      `json:"path"`
+	Rights          []string    `json:"rights"`
+	TotalSize       int64       `json:"total_size"`      // total file size in bytes
+	ChunkSize       int32       `json:"chunk_size"`      // size of each chunk
+	ChunkCount      int32       `json:"chunk_count"`     // total number of chunks
+	AvailableChunks []int32     `json:"available_chunks"`// indices of chunks available
 }
 
 type Tl2NlRedisFileShareDownloadReq struct {
-    FileId       string   `json:"file_id"`
-    ChunkIndices []int32  `json:"chunk_indices"` // list of chunk indices requested
+	FileId       string   `json:"file_id"`
+	ChunkIndices []int32  `json:"chunk_indices"` // list of chunk indices requested
 }
 
 type Nl2TlRedisFileShareMetadata struct {
-    FileId          string             `json:"file_id"`
-    Severity        string             `json:"severity"`
-    Sender          utils.PeerMetadata `json:"sender"`
-    Description     interface{}        `json:"description"`
-    TotalSize       int64              `json:"total_size"`      // total file size in bytes
-    ChunkSize       int32              `json:"chunk_size"`      // size of each chunk
-    ChunkCount      int32              `json:"chunk_count"`     // total number of chunks
-    AvailableChunks []int32            `json:"available_chunks"`// indices of chunks available
+	FileId          string             `json:"file_id"`
+	Severity        string             `json:"severity"`
+	Sender          utils.PeerMetadata `json:"sender"`
+	Description     interface{}        `json:"description"`
+	TotalSize       int64              `json:"total_size"`      // total file size in bytes
+	ChunkSize       int32              `json:"chunk_size"`      // size of each chunk
+	ChunkCount      int32              `json:"chunk_count"`     // total number of chunks
+	AvailableChunks []int32            `json:"available_chunks"`// indices of chunks available
 }
 
 type Nl2TlRedisFileShareDownloadDone struct {
-    FileId     string             `json:"file_id"`
-    Path       string             `json:"path"`
-    Sender     utils.PeerMetadata `json:"sender"`
-    ChunkIndex int32              `json:"chunk_index,omitempty"` // indicate which chunk was downloaded
+	FileId     string             `json:"file_id"`
+	Path       string             `json:"path"`
+	Sender     utils.PeerMetadata `json:"sender"`
+	ChunkIndex int32              `json:"chunk_index,omitempty"` // indicate which chunk was downloaded
 }
 
 func NewFileShareProtocol(ctx context.Context, pu *utils.ProtoUtils, fb *files.FileBook,
@@ -123,43 +124,43 @@ func (fs *FileShareProtocol) onDownloadRequest(data []byte) {
 
 	// if specific chunk indices are requested, handle chunked download
 	if len(fileAnnouncement.ChunkIndices) > 0 {
-        // for each requested chunk, initiate a chunk download
-        for _, chunkIndex := range fileAnnouncement.ChunkIndices {
-            path, sender := fs.downloadSingleChunk(fileCid, chunkIndex)
-            if path == "" || sender == nil {
-                log.Errorf("failed to download chunk %d of file %s", chunkIndex, fileCid.String())
-                continue
-            }
-            // notify TL about the downloaded chunk
-            err = fs.notifyTLAboutDownload(fileCid, *sender, path, chunkIndex)
-            if err != nil {
-                log.Errorf("error sending download confirmation to redis for chunk %d: %s", chunkIndex, err)
-                continue
-            }
-            log.Infof("successfully downloaded chunk %d of file %s", chunkIndex, fileCid.String())
-        }
-    } else {
-        // otherwise, proceed with the full file download as in original implementation
+		// for each requested chunk, initiate a chunk download
+		for _, chunkIndex := range fileAnnouncement.ChunkIndices {
+			path, sender := fs.downloadSingleChunk(fileCid, chunkIndex)
+			if path == "" || sender == nil {
+				log.Errorf("failed to download chunk %d of file %s", chunkIndex, fileCid.String())
+				continue
+			}
+			// notify TL about the downloaded chunk
+			err = fs.notifyTLAboutDownload(fileCid, *sender, path, chunkIndex)
+			if err != nil {
+				log.Errorf("error sending download confirmation to redis for chunk %d: %s", chunkIndex, err)
+				continue
+			}
+			log.Infof("successfully downloaded chunk %d of file %s", chunkIndex, fileCid.String())
+		}
+	} else {
+		// otherwise, proceed with the full file download as in original implementation
 		// now use DHT to download the file
-        path, sender := fs.downloadFile(providers, fileCid)
-        if path == "" || sender == nil {
+		path, sender := fs.downloadFile(providers, fileCid)
+		if path == "" || sender == nil {
 			// did not succeed
-            return
-        }
+			return
+		}
 		// notify TL where file is downloaded
-        err = fs.notifyTLAboutDownload(fileCid, *sender, path, -1)
-        if err != nil {
-            log.Errorf("error sending download confirmation to redis: %s", err)
-            return
-        }
-        meta.Available = true
-        meta.Path = path
-        err = fs.dht.StartProviding(fileCid)
-        if err != nil {
-            log.Errorf("error starting providing file in DHT: %s", err)
-        }
-        log.Infof("successfully downloaded the file %s to path %s", fileCid.String(), path)
-    }
+		err = fs.notifyTLAboutDownload(fileCid, *sender, path, -1)
+		if err != nil {
+			log.Errorf("error sending download confirmation to redis: %s", err)
+			return
+		}
+		meta.Available = true
+		meta.Path = path
+		err = fs.dht.StartProviding(fileCid)
+		if err != nil {
+			log.Errorf("error starting providing file in DHT: %s", err)
+		}
+		log.Infof("successfully downloaded the file %s to path %s", fileCid.String(), path)
+	}
 
 	// Check if all chunks are downloaded
 	meta = fs.fileBook.Get(&fileCid)
@@ -176,74 +177,89 @@ func (fs *FileShareProtocol) onDownloadRequest(data []byte) {
 	}
 }
 
+// method to keep track of the last successful provider
+var lastSuccessfulProvider *peer.ID
+
+func (fs *FileShareProtocol) getLastSuccessfulProvider() *peer.ID {
+	return lastSuccessfulProvider
+}
+
+// method to set the last successful provider
+func (fs *FileShareProtocol) setLastSuccessfulProvider(p peer.ID) {
+	lastSuccessfulProvider = &p
+}
+
 // helper function to download individual chunk
-func (fs *FileShareProtocol) downloadSingleChunk(fileCid cid.Cid, chunkIndex int32) (string, *utils.PeerMetadata) {
-    // create a FileDownloadRequest specifically for this chunk
-    req := &pb.FileDownloadRequest{
-        Cid:          fileCid.String(),
-        ChunkSize:    fs.getChunkSizeFor(fileCid), // Define this helper to retrieve the chunk size from metadata
-        ChunkIndices: []int32{chunkIndex},
-    }
-    path, err := fs.tryDownloadChunk(req, fileCid) 
-    if err != nil {
-        log.Errorf("error downloading chunk %d: %s", chunkIndex, err)
-        return "", nil
-    }
-    // return the local path where the chunk is stored and the peer metadata
-    return path, fs.getLastSuccessfulProvider()
+func (fs *FileShareProtocol) downloadSingleChunk(fileCid cid.Cid, chunkIndex int32) (string, *peer.ID) {
+	// create a FileDownloadRequest specifically for this chunk
+	req := &pb.FileDownloadRequest{
+		Cid:          fileCid.String(),
+		ChunkSize:    fs.getChunkSizeFor(fileCid), // Define this helper to retrieve the chunk size from metadata
+		ChunkIndices: []int32{chunkIndex},
+	}
+	path, err := fs.tryDownloadChunk(req, fileCid)
+	if err != nil {
+		log.Errorf("error downloading chunk %d: %s", chunkIndex, err)
+		return "", nil
+	}
+	// return the local path where the chunk is stored and the peer metadata
+	return path, fs.getLastSuccessfulProvider()
 }
 
 // not sure if this is necessary/redundant because FileBook already has a getter
 func (fs *FileShareProtocol) getChunkSizeFor(fileCid cid.Cid) int32 {
-    meta := fs.fileBook.Get(&fileCid)
-    if meta == nil {
-        log.Errorf("metadata not found for file cid: %s", fileCid.String())
-        return 0
-    }
-    return meta.ChunkSize
+	meta := fs.fileBook.Get(&fileCid)
+	if meta == nil {
+		log.Errorf("metadata not found for file cid: %s", fileCid.String())
+		return 0
+	}
+	return meta.ChunkSize
 }
 
 // helper to download individual chunks by calling tryFileProvider
 func (fs *FileShareProtocol) tryDownloadChunk(req *pb.FileDownloadRequest, fileCid cid.Cid) (string, error) {
-    // get providers from the DHT for this file
-    providers, err := fs.dht.GetProvidersOf(fileCid)
-    if err != nil {
-        return "", errors.Errorf("error getting providers of file %s: %s", fileCid.String(), err)
-    }
-    if len(providers) == 0 {
-        return "", errors.Errorf("no providers found for file %s", fileCid.String())
-    }
-    // try each provider until one returns the chunk successfully
-    for _, p := range providers {
-        // use tryFileProvider to send the request/get the response
-        path, err := fs.tryFileProvider(req, p.ID, fileCid)
-        if err != nil {
-            log.Error(err)
-            continue
-        }
-        
-        // If we successfully downloaded the chunk, update the ChunksStatus in the metadata
-        if len(req.ChunkIndices) > 0 {
-            meta := fs.fileBook.Get(&fileCid)
-            if meta != nil {
-                for _, chunkIndex := range req.ChunkIndices {
-                    err = fs.fileBook.UpdateChunkStatus(&fileCid, chunkIndex, true)
-                    if err != nil {
-                        log.Errorf("error updating chunk status for chunk %d: %s", chunkIndex, err)
-                        // Continue even if there's an error updating the status
-                    } else {
-                        log.Debugf("updated chunk status for chunk %d of file %s", chunkIndex, fileCid.String())
-                    }
-                }
-            } else {
-                log.Errorf("metadata not found for file %s after download", fileCid.String())
-            }
-        }
-        
-        // If we get a valid path (i.e. the chunk was downloaded), return it.
-        return path, nil
-    }
-    return "", errors.Errorf("failed to download chunk from all providers for file %s", fileCid.String())
+	// get providers from the DHT for this file
+	providers, err := fs.dht.GetProvidersOf(fileCid)
+	if err != nil {
+		return "", errors.Errorf("error getting providers of file %s: %s", fileCid.String(), err)
+	}
+	if len(providers) == 0 {
+		return "", errors.Errorf("no providers found for file %s", fileCid.String())
+	}
+	// try each provider until one returns the chunk successfully
+	for _, p := range providers {
+		// use tryFileProvider to send the request/get the response
+		path, err := fs.tryFileProvider(req, p.ID, fileCid)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		// Set the last successful provider
+		fs.setLastSuccessfulProvider(p.ID)
+
+		// If we successfully downloaded the chunk, update the ChunksStatus in the metadata
+		if len(req.ChunkIndices) > 0 {
+			meta := fs.fileBook.Get(&fileCid)
+			if meta != nil {
+				for _, chunkIndex := range req.ChunkIndices {
+					err = fs.fileBook.UpdateChunkStatus(&fileCid, chunkIndex, true)
+					if err != nil {
+						log.Errorf("error updating chunk status for chunk %d: %s", chunkIndex, err)
+						// Continue even if there's an error updating the status
+					} else {
+						log.Debugf("updated chunk status for chunk %d of file %s", chunkIndex, fileCid.String())
+					}
+				}
+			} else {
+				log.Errorf("metadata not found for file %s after download", fileCid.String())
+			}
+		}
+
+		// If we get a valid path (i.e. the chunk was downloaded), return it.
+		return path, nil
+	}
+	return "", errors.Errorf("failed to download chunk from all providers for file %s", fileCid.String())
 }
 
 func (fs *FileShareProtocol) createP2PFileDownloadReq(fileCid cid.Cid) (*pb.FileDownloadRequest, error) {
@@ -548,7 +564,8 @@ func (fs *FileShareProtocol) onRedisFileAnnouncement(data []byte) {
 	err = fs.dht.StartProviding(*fileCid)
 	if err != nil {
 		log.Errorf("error starting providing file in dht: %s", err)
-		retudht	}
+		return
+	}
 	log.Debugf("successfully started providing file %s", fileCid.String())
 
 	// Create and spread P2P metadata
@@ -557,8 +574,7 @@ func (fs *FileShareProtocol) onRedisFileAnnouncement(data []byte) {
 		log.Errorf("error creating p2p proto metadata: %s", err)
 		return
 	}
-
-	// store this msg as seen in casmsgmes back from another peer
+	// store this msg as seen in case messages back from another peer
 	fs.NewMsgSeen(protoMsg.Metadata.Id, fs.Host.ID())
 
 	fs.spreader.startSpreading(p2pFileShareMetadataProtocol, meta.Severity, meta.Rights, protoMsg, fs.Host.ID())
@@ -578,15 +594,15 @@ func (fs *FileShareProtocol) createP2PMeta(fCid cid.Cid, meta Tl2NlRedisFileShar
 
 	// add chunk data to protoMsg
 	protoMsg := &pb.FileMetadata{
-		Metadata:    msgMetaData,
-		Cid:         fCid.String(),
-		Description: bytesDesc,
-		Rights:      meta.Rights,
-		Severity:    meta.Severity,
-		ExpiredAt:   meta.ExpiredAt,
-		TotalSize:	 meta.TotalSize,
-		ChunkSize:	 meta.ChunkSize,
-		ChunkCount:  meta.ChunkCount,
+		Metadata:        msgMetaData,
+		Cid:             fCid.String(),
+		Description:     bytesDesc,
+		Rights:          meta.Rights,
+		Severity:        meta.Severity,
+		ExpiredAt:       meta.ExpiredAt,
+		TotalSize:       meta.TotalSize,
+		ChunkSize:       meta.ChunkSize,
+		ChunkCount:      meta.ChunkCount,
 		AvailableChunks: meta.AvailableChunks,
 	}
 	signature, err := fs.SignProtoMessage(protoMsg)
@@ -622,7 +638,7 @@ func (fs *FileShareProtocol) fileMetaFromP2P(p2pMeta *pb.FileMetadata) (*files.F
 
 	// Initialize the ChunksStatus slice based on ChunkCount
 	chunksStatus := make([]bool, p2pMeta.ChunkCount)
-	
+
 	// Mark available chunks as true in ChunksStatus
 	for _, chunkIndex := range p2pMeta.AvailableChunks {
 		if chunkIndex >= 0 && int(chunkIndex) < len(chunksStatus) {
@@ -631,16 +647,16 @@ func (fs *FileShareProtocol) fileMetaFromP2P(p2pMeta *pb.FileMetadata) (*files.F
 	}
 
 	meta := &files.FileMeta{
-		ExpiredAt:     expiredAt,
-		Expired:       time.Now().After(expiredAt),
-		Available:     false,
-		Path:          "",
-		Rights:        rights,
-		Severity:      severity,
-		Description:   desc,
-		ChunkSize:     p2pMeta.ChunkSize,     // Set chunk size from metadata
-		ChunkCount:    p2pMeta.ChunkCount,    // Set chunk count from metadata
-		ChunksStatus:  chunksStatus,          // Set chunk status from metadata
+		ExpiredAt:    expiredAt,
+		Expired:      time.Now().After(expiredAt),
+		Available:    false,
+		Path:         "",
+		Rights:       rights,
+		Severity:     severity,
+		Description:  desc,
+		ChunkSize:    p2pMeta.ChunkSize,     // Set chunk size from metadata
+		ChunkCount:   p2pMeta.ChunkCount,    // Set chunk count from metadata
+		ChunksStatus: chunksStatus,          // Set chunk status from metadata
 	}
 	return meta, nil
 }
@@ -668,28 +684,33 @@ func (fs *FileShareProtocol) fileMetaFromRedis(ann *Tl2NlRedisFileShareAnnounce)
 
 	// Initialize the ChunksStatus slice based on ChunkCount
 	chunksStatus := make([]bool, ann.ChunkCount)
-	err = json.Unmarshal(ann.Description, &desc)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	// Mark available chunks as true in ChunksStatus
 	for _, chunkIndex := range ann.AvailableChunks {
 		if chunkIndex >= 0 && int(chunkIndex) < len(chunksStatus) {
 			chunksStatus[chunkIndex] = true
+		} else {
+			log.Warnf("chunk index %d is out of bounds for file %s", chunkIndex, ann.Path)
+		}
+	}
+
+	// Ensure all other chunks are marked as false
+	for i := range chunksStatus {
+		if !chunksStatus[i] {
+			chunksStatus[i] = false
 		}
 	}
 	meta := &files.FileMeta{
-		ExpiredAt:     expiredAt,
-		Expired:       time.Now().After(expiredAt),
-		Available:     true,
-		Path:          ann.Path,
-		Rights:        rights,
-		Severity:      severity,
-		Description:   desc,
-		ChunkSize:     ann.ChunkSize,      // Set chunk size from announcement
-		ChunkCount:    ann.ChunkCount,     // Set chunk count from announcement
-		ChunksStatus:  chunksStatus,       // Set chunk status from announcement
+		ExpiredAt:    expiredAt,
+		Expired:      time.Now().After(expiredAt),
+		Available:    true,
+		Path:         ann.Path,
+		Rights:       rights,
+		Severity:     severity,
+		Description:  ann.Description, // Fix: use ann.Description instead of undefined desc
+		ChunkSize:    ann.ChunkSize,   // Set chunk size from announcement
+		ChunkCount:   ann.ChunkCount,  // Set chunk count from announcement
+		ChunksStatus: chunksStatus,    // Set chunk status from announcement
 	}
 	return fileCid, meta, nil
 }
