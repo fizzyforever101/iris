@@ -96,6 +96,7 @@ Every peer connects to a different Redis channel and waits for messages from Fid
 
 To interact with the peers, you must act as Fides Trust Model and send the peers a manual message by publishing some of them through the Redis channels. Example PUBLISH commands can be found in [dev/redisobj.dev](dev/redisobj.dev).
 
+![image](https://github.com/user-attachments/assets/077b660d-041e-43ff-9cf1-9a21fbccac0a)
 
 ## Todo/Future Work:
 * Signal handling for graceful shutdown
