@@ -98,6 +98,41 @@ To interact with the peers, you must act as Fides Trust Model and send the peers
 
 ![image](https://github.com/user-attachments/assets/077b660d-041e-43ff-9cf1-9a21fbccac0a)
 
+### Steps to Initiate Full and Partial File Transfers with File Chunking
+1. Open Terminal and Navigate to IRIS folder
+> * make network
+> * v
+
+2. Open a terminal for each respective peer in the Docker Desktop
+> * Peer 1:
+>> * docker exec -it iris-peer1-1 /bin/bash
+>> * apt-get update; apt-get install redis-tools -y; redis-cli -h iris-redis-1 -p 6379
+> * Peer 2: 
+>> * docker exec -it iris-peer2-1 /bin/bash
+>> * apt-get update; apt-get install redis-tools -y; redis-cli -h iris-redis-1 -p 6379
+
+3. Run the IRIS commands to share intelligence for partial send
+> * Peer 1:
+>> * PUBLISH gp2p_tl2nl2 '{"type":"tl2nl_file_share","version":1,"data":{"expired_at":1647162651,"severity":"MAJOR","rights":[],"description":{"size":420},"path":"/root/.bashrc","total_size":420,"chunk_size":100,"chunk_count":5,"available_chunks":[0,1,3]}}'
+
+>> * PUBLISH gp2p_tl2nl1 '{"type":"tl2nl_file_share_download","version":1,"data":{"file_id":"QmS4FkBx1uBDHDLASvDocmfo5FXrXgNv4F8WRDkiNTUFe7","chunks":[0,1,3]}}'
+
+> * Peer 2:
+>> * DO THIS FIRST
+>> * SUBSCRIBE gp2p_tl2nl1
+>> * Monitor logs and messages
+
+4. Run the IRIS commands to share intelligence for full send
+> * Peer 1:
+>> * PUBLISH gp2p_tl2nl2 '{"type":"tl2nl_file_share","version":1,"data":{"expired_at":1647162651,"severity":"MAJOR","rights":[],"description":{"size":420},"path":"/root/.bashrc","total_size":420,"chunk_size":100,"chunk_count":5,"available_chunks":[0,1,2,3,4]}}'
+>> * PUBLISH gp2p_tl2nl1 '{"type":"tl2nl_file_share_download","version":1,"data":{"file_id":"QmS4FkBx1uBDHDLASvDocmfo5FXrXgNv4F8WRDkiNTUFe7","chunks":[0,1,2,3,4]}}'
+
+> * Peer 2:
+>> * DO THIS FIRST
+>> * SUBSCRIBE gp2p_tl2nl1
+>> * Monitor logs and messages
+
+
 ## Todo/Future Work:
 * Signal handling for graceful shutdown
 * After a peer connects to the network, search immediately for members of trustworthy organisations. So far, only `connector` does it.
