@@ -4,7 +4,7 @@ Iris is a P2P system for collaborative defense proposed by Bc. Martin Řepa deve
 
 This repository forks a reference implementation written in Golang using [LibP2P project](https://github.com/libp2p). 
 
-## Authors - CS 4675/6675 Final Project
+## Authors - CS 4675/6675 Spring 2025 Final Project
 Sabina Sokol, Keerthana Thotakura, Maria Jothish, Tran Ha, Seung-a Baek
 
 ## Motivation 
