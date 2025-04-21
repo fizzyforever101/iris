@@ -2,27 +2,39 @@
 
 Iris is a P2P system for collaborative defense proposed by Bc. Martin Řepa developed for Stratosphere lab during his [diploma thesis work](https://www.stratosphereips.org/thesis-projects-list/2022/3/12/global-permissionless-p2p-system-for-sharing-distributed-threat-intelligence).
 
-This repository hosts a reference implementation written in Golang using [LibP2P project](https://github.com/libp2p) along with integration of Iris into [Slips IPS](https://github.com/draliii/StratosphereLinuxIPS) and [Fides Trust Model](https://github.com/lukasforst/fides). 
+This repository forks a reference implementation written in Golang using [LibP2P project](https://github.com/libp2p). 
 
-This project is funded by [NlNet NGI Zero Entrust](https://nlnet.nl/project/Iris-P2P/)
+## Authors - CS 4675/6675 Final Project
+Sabina Sokol, Keerthana Thotakura, Maria Jothish, Tran Ha, Seung-a Baek
 
+## Motivation 
 
-For more details regarding design please see [Design](docs/Design.md). For the architecture/implementation, we refer the reader to [Architecture](docs/architecture.md) or the thesis itself.
+Imagine a large financial institution, BankSecure, detects a sophisticated phishing campaign targeting its customers. The attack exploits vulnerabilities in common online banking authentication methods. BankSecure wants to share this intelligence with other banks and cybersecurity organizations to prevent further damage. However, several concerns arise:
 
-### Motivation 
+> * Reputation Risk: If it becomes public that BankSecure was targeted and potentially compromised, customers may lose trust in the bank's security, leading to financial losses and reputational damage.
+> * Competitive Concerns: Sharing detailed threat intelligence could expose weaknesses in BankSecure’s security posture, which competitors might exploit or regulators might scrutinize.
+> * Privacy & Legal Risks: The threat intelligence may include sensitive customer metadata, IP addresses, or internal security logs, which must be shared responsibly to avoid legal or regulatory violations.
+> * Centralized Trust Issues: Traditional threat intelligence platforms are often controlled by a single entity, which may misuse or monetize the data, further discouraging open participation.
 
-Despite the severity and amount of daily cyberattacks, the best solutions our community has so far are
-centralized, threat intelligence shared lists; or centralized, commercially-based defense products.
-No system exists yet to automatically connect endpoints globally and share information about new attacks
-to improve their security. 
+Because of these concerns, BankSecure hesitates to share its findings, delaying critical information that could protect other institutions from similar attacks.
 
-Iris allows collaborative defense in cyberspace with an emphasis on security and privacy concerns.
-It is a pure and completely decentralized P2P network that allows peers to (i) share threat intelligence
-files, (ii) alert peers about detected attacks, and (iii) ask peers about their opinion on potential
-attacks. Iris addresses the problem of confidentiality of local threat intelligence data by
-introducing the concept of _Organisations_. Organizations are cryptographically-verified and
-trusted groups of peers within the P2P network. They allow Iris to send content only
-to pre-trusted groups of peers.
+Despite the severity and amount of daily cyberattacks, the best solutions our community has so far are centralized, threat intelligence shared lists; or centralized, commercially-based defense products. No system exists yet to automatically connect endpoints globally and share information about new attacks to improve their security.
+
+Iris allows collaborative defense in cyberspace with an emphasis on security and privacy concerns. It is a pure and completely decentralized P2P network that allows peers to (i) share threat intelligence files, (ii) alert peers about detected attacks, and (iii) ask peers about their opinion on potential attacks. Iris addresses the problem of confidentiality of local threat intelligence data by introducing the concept of Organisations. Organizations are cryptographically-verified and trusted groups of peers within the P2P network. They allow Iris to send content only to pre-trusted groups of peers.
+
+## Related Work
+
+Early centralized P2P networks, like Gnutella, faced major challenges including link congestion, single points of failure, and high administrative overhead. Relying on a single peer to log and transmit data creates vulnerabilities such as inefficiency, tampering risks, and the inability to detect breaches due to a lack of redundancy. In contrast, decentralized P2P systems distribute data collection across multiple nodes, reducing congestion and improving fault tolerance while enabling cross-peer validation for anomaly detection. **IRIS** builds on this decentralized model for threat intelligence sharing by leveraging distributed hash tables (DHTs) and cryptographic keys to ensure confidentiality and trust. It allows peers to securely share alerts while maintaining control over data privacy and dissemination.
+
+## Novelty/Improvements to IRIS Framework
+### Motivation
+Allows for partial downloads of files
+### Strategy
+1. Peer Requests Metadata → Learns chunk details including file name, total file size, chunk size, and the list of chunk hashes (for verification).
+2. Peer Checks Missing Chunks → Compares existing chunks via hashing.
+3. Peer Requests Only Missing Chunks → Saves bandwidth.
+4. Sender Sends Requested Chunks → Avoids redundant transfers.
+5. Peer Reassembles the File if All Chunks Are Available → Completes file transfer efficiently.
 
 ## Dependencies
 
@@ -36,18 +48,6 @@ To run a standalone peer, you need:
 * Next, check if `go` is in your path with `echo $PATH` for Mac/Linux or `echo %PATH%` for Windows
 * If `/usr/local/go/bin` (Mac/Linux) or `C:\Go\bin` (Windows) is missing, run `echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc; source ~/.bashrc  # or source ~/.zshrc if using zsh` (Mac/Linux) or add `C:\Go\bin` manually to System variables (Windows)
 * Verify your installation with `go version`
-
-## Ongoing Improvements: Modifying the file-sharing protocol to send fixed-sized chunks
-### Authors
-Sabina Sokol, Keerthana Thotakura, Maria Jothish, Tran Ha, Seung-a Baek
-### Motivation
-Allows for partial downloads of files
-### Strategy
-1. Peer Requests Metadata → Learns chunk details including file name, total file size, chunk size, and the list of chunk hashes (for verification).
-2. Peer Checks Missing Chunks → Compares existing chunks via hashing.
-3. Peer Requests Only Missing Chunks → Saves bandwidth.
-4. Sender Sends Requested Chunks → Avoids redundant transfers.
-5. Peer Reassembles the File if All Chunks Are Available → Completes file transfer efficiently.
 
 ## User Guide
 
